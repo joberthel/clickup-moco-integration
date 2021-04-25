@@ -3,7 +3,7 @@ import fastify from 'fastify';
 
 export default async () => {
     const server = fastify({
-        logger: { prettyPrint: true }
+        logger: process.env.NODE_ENV === 'production' ? false : { prettyPrint: true }
     });
 
     // plugins
