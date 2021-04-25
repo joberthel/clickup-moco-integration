@@ -51,10 +51,39 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     // TODO: check if time for this ticket was already tracked on a specific task -> try track on that task
 
     // collect moco projects
-    const projects = (await getAssignedProjects(key)).filter(project => project.active).filter(project => project.tasks.filter(task => task.active).length > 0);
-    if (projects.length == 0) return;
+    const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry)
 
-    // select project
+    if (similarMatch !== false) {
+        await fetch(`${API_BASE}/activities`, {
+            method: 'post',
+            headers: {
+                'Authorization': `Token token=${key}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                date: `${new Date().toISOString().slice(0, 10)}`,
+                description: timeEntry.description || clickupTask.name,
+                billable: timeEntry.billable,
+                tag: clickupTask.custom_id || clickupTask.id,
+                remote_service: 'clickup',
+                remote_id: clickupTask.id,
+                remote_url: clickupTask.url,
+                project_id: similarMatch.project,
+                task_id: similarMatch.task,
+                hours: parseInt(timeEntry.duration) / 3600000
+            })
+        });
+    }
+};
+
+const findProjectTaskBySimilarity = async (
+    key: string,
+    clickupTask: ClickupTask,
+    timeEntry: ClickupTimeEntry
+): Promise<{ project: number; task: number } | false> => {
+    const projects = (await getAssignedProjects(key)).filter(project => project.active).filter(project => project.tasks.filter(task => task.active).length > 0);
+    if (projects.length == 0) return false;
+
     const projectCombinations = [projects.map(project => project.name), projects.map(project => project.customer.name)];
     const projectMatch = findMatch([clickupTask.folder.name, clickupTask.list.name], projectCombinations);
 
@@ -70,27 +99,14 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
         if (typeof taskMatch !== 'undefined') {
             const task = tasks[taskMatch.bestMatchIndex];
 
-            await fetch(`${API_BASE}/activities`, {
-                method: 'post',
-                headers: {
-                    'Authorization': `Token token=${key}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    date: `${new Date().toISOString().slice(0, 10)}`,
-                    description: timeEntry.description || clickupTask.name,
-                    billable: task.billable && timeEntry.billable,
-                    tag: clickupTask.custom_id || clickupTask.id,
-                    remote_service: 'clickup',
-                    remote_id: clickupTask.id,
-                    remote_url: clickupTask.url,
-                    project_id: project.id,
-                    task_id: task.id,
-                    hours: parseInt(timeEntry.duration) / 3600000
-                })
-            });
+            return {
+                project: project.id,
+                task: task.id
+            };
         }
     }
+
+    return false;
 };
 
 const findMatch = (needle: string[], haystack: string[][]): stringSimilarity.BestMatch | undefined => {
