@@ -2,7 +2,7 @@ import app from './app';
 import { PORT } from './environment';
 
 app().then(server => {
-    server.listen(PORT, (err, address) => {
+    server.listen(PORT, '0.0.0.0', (err, address) => {
         if (err) {
             server.log.error(err);
             process.exit(1);
