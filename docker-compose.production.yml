@@ -1,0 +1,42 @@
+version: '3.1'
+
+services:
+    traefik:
+        image: traefik:2.4
+        command:
+            - --log.level=WARN
+            - --providers.docker
+            - --entryPoints.web.address=:80
+            - --entrypoints.web.http.redirections.entryPoint.to=websecure
+            - --entrypoints.web.http.redirections.entryPoint.scheme=https
+            - --entryPoints.websecure.address=:443
+            - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
+            - --certificatesresolvers.myresolver.acme.storage=/acme/acme.json
+            - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+        ports:
+            - 80:80
+            - 443:443
+        depends_on:
+            - server
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ./acme:/acme
+        restart: unless-stopped
+
+    server:
+        restart: unless-stopped
+        command: sh -c "npm i && npm run build && npm run start"
+        depends_on:
+            - mongo
+        labels:
+            - "traefik.http.routers.server.rule=Host(`${DOMAIN}`)"
+            - "traefik.http.routers.front.entryPoints=web,traefik"
+            - "traefik.http.services.server.loadbalancer.server.port=3000"
+            - "traefik.http.routers.server-ssl.rule=Host(`${DOMAIN}`)"
+            - "traefik.http.routers.server-ssl.entryPoints=websecure"
+            - "traefik.http.routers.server-ssl.tls=true"
+            - "traefik.http.routers.server-ssl.service=server"
+            - "traefik.http.routers.server-ssl.tls.certresolver=myresolver"
+
+    mongo:
+        restart: unless-stopped
