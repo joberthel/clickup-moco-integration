@@ -27,6 +27,14 @@ export interface MocoTask {
     billable: boolean;
 }
 
+export interface MocoActivity {
+    tag: string;
+    remote_service: string;
+    created_at: string;
+    project: MocoProject;
+    task: MocoTask;
+}
+
 export const validate = async (key: string): Promise<boolean> => {
     const response = await fetch(`${API_BASE}/session`, {
         headers: {
@@ -35,6 +43,17 @@ export const validate = async (key: string): Promise<boolean> => {
     });
 
     return response.status == 200;
+};
+
+export const getUserId = async (key: string): Promise<number> => {
+    const response = await fetch(`${API_BASE}/session`, {
+        headers: {
+            Authorization: `Token token=${key}`
+        }
+    });
+
+    const json = await response.json();
+    return json.id;
 };
 
 export const getAssignedProjects = async (key: string): Promise<MocoProject[]> => {
@@ -47,33 +66,85 @@ export const getAssignedProjects = async (key: string): Promise<MocoProject[]> =
     return await response.json();
 };
 
-export const trackClickupTask = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<void> => {
-    // TODO: check if time for this ticket was already tracked on a specific task -> try track on that task
+export const getProject = async (key: string, project: number): Promise<MocoProject> => {
+    const response = await fetch(`${API_BASE}/projects/${project}`, {
+        headers: {
+            Authorization: `Token token=${key}`
+        }
+    });
 
-    // collect moco projects
-    const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry)
+    return await response.json();
+};
+
+export const getTask = async (key: string, project: number, task: number): Promise<MocoTask> => {
+    const response = await fetch(`${API_BASE}/projects/${project}/tasks/${task}`, {
+        headers: {
+            Authorization: `Token token=${key}`
+        }
+    });
+
+    return await response.json();
+};
+
+export const getActivities = async (key: string): Promise<MocoActivity[]> => {
+    const past = new Date();
+    past.setDate(past.getDate() - 7);
+
+    const response = await fetch(`${API_BASE}/activities?from=${formatDate(past)}&to=${formatDate(new Date())}&user_id=${await getUserId(key)}`, {
+        headers: {
+            Authorization: `Token token=${key}`
+        }
+    });
+
+    const activities: MocoActivity[] = await response.json();
+    return activities.filter(activity => activity.remote_service === 'clickup' && activity.tag.length > 0);
+};
+
+export const trackClickupTask = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<void> => {
+    // track on same task if old activity is found
+    const activities = await getActivities(key);
+    const activity = activities.find(activity => activity.tag === (clickupTask.custom_id || clickupTask.id));
+
+    if (typeof activity !== 'undefined') {
+        const project = await getProject(key, activity.project.id);
+
+        if (project.active) {
+            const task = await getTask(key, project.id, activity.task.id);
+
+            if (task.active) {
+                return await createActivity(key, clickupTask, timeEntry, project.id, task.id);
+            }
+        }
+    }
+
+    // track on task based on similar name
+    const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry);
 
     if (similarMatch !== false) {
-        await fetch(`${API_BASE}/activities`, {
-            method: 'post',
-            headers: {
-                'Authorization': `Token token=${key}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                date: `${new Date().toISOString().slice(0, 10)}`,
-                description: timeEntry.description || clickupTask.name,
-                billable: timeEntry.billable,
-                tag: clickupTask.custom_id || clickupTask.id,
-                remote_service: 'clickup',
-                remote_id: clickupTask.id,
-                remote_url: clickupTask.url,
-                project_id: similarMatch.project,
-                task_id: similarMatch.task,
-                hours: parseInt(timeEntry.duration) / 3600000
-            })
-        });
+        return await createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
     }
+};
+
+export const createActivity = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry, project: number, task: number): Promise<void> => {
+    await fetch(`${API_BASE}/activities`, {
+        method: 'post',
+        headers: {
+            'Authorization': `Token token=${key}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            date: `${formatDate(new Date())}`,
+            description: timeEntry.description || clickupTask.name,
+            billable: timeEntry.billable,
+            tag: clickupTask.custom_id || clickupTask.id,
+            remote_service: 'clickup',
+            remote_id: clickupTask.id,
+            remote_url: clickupTask.url,
+            project_id: project,
+            task_id: task,
+            hours: parseInt(timeEntry.duration) / 3600000
+        })
+    });
 };
 
 const findProjectTaskBySimilarity = async (
@@ -123,4 +194,8 @@ const findMatch = (needle: string[], haystack: string[][]): stringSimilarity.Bes
     }
 
     return bestMatch;
+};
+
+const formatDate = (date: Date): string => {
+    return date.toISOString().slice(0, 10);
 };
