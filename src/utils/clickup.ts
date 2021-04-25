@@ -30,15 +30,26 @@ export interface ClickupWebhook {
 
 export interface ClickupTimeEntry {
     id: string;
-    task: {
-        id: string;
-        name: string;
-    }
+    task: ClickupTask
     user: ClickupUser;
     billable: boolean;
     duration: string;
     description: string;
     tags: string[];
+}
+
+export interface ClickupTask {
+    id: string;
+    custom_id?: string;
+    name: string;
+    url: string;
+    list: { id: string; name: string; access: boolean};
+    folder: {
+        id: string;
+        name: string;
+        hidden: boolean;
+        access: boolean;
+    }
 }
 
 export const getToken = async (code: string): Promise<string> => {
@@ -129,4 +140,15 @@ export const getTimeEntry = async (token: string, team: number, timer: string): 
 
     const json = await response.json();
     return json.data;
+};
+
+export const getTask = async (token: string, task: string): Promise<ClickupTask|false> => {
+    const response = await fetch(`${API_BASE}/task/${task}`, {
+        headers: {
+            Authorization: token
+        }
+    });
+
+    const json = await response.json();
+    return json;
 };

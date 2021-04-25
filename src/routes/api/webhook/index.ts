@@ -1,8 +1,10 @@
 import EventEmitter from 'events';
 import { FastifyInstance } from 'fastify';
 import UserService from '../../../services/user';
+import { trackClickupTask } from '../../../utils/moco';
 import WebhookService from '../../../services/webhook';
-import { ClickupUser, getTimeEntry } from '../../../utils/clickup';
+import TimeEntryService from '../../../services/time-entry';
+import { ClickupUser, getTimeEntry, getTask } from '../../../utils/clickup';
 
 export interface TaskTimeTrackedUpdated {
     event: 'taskTimeTrackedUpdated';
@@ -23,6 +25,7 @@ export interface TaskTimeTrackedUpdatedHistoryItems {
 export default async (server: FastifyInstance) => {
     const userService = new UserService(server);
     const webhookService = new WebhookService(server);
+    const timeEntryService = new TimeEntryService(server);
 
     const eventEmitter = new EventEmitter();
     eventEmitter.on('taskTimeTrackedUpdated', async (body: TaskTimeTrackedUpdated) => {
@@ -36,9 +39,13 @@ export default async (server: FastifyInstance) => {
                     if (user !== false) {
                         const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
 
-                        if (timeEntry !== false) {
-                            // TODO: store time entry in moco, if not already in mongodb
-                            // TODO: store time entry id in mongodb
+                        if (timeEntry !== false && (await timeEntryService.getOne(timeEntry.id)) === false) {
+                            const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
+
+                            if (task !== false) {
+                                await trackClickupTask(user.credentials.mocoKey, task, timeEntry);
+                                await timeEntryService.create({ _id: timeEntry.id });
+                            }
                         }
                     }
                 }
