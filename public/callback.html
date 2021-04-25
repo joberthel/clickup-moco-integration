@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>MOCO Integration</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css" />
+        <script src="https://unpkg.com/vue/dist/vue.min.js"></script>
+    </head>
+
+    <body>
+        <div id="app">
+            <section class="section">
+                <div class="columns">
+                    <div class="column is-8 is-offset-2 is-6-desktop is-offset-3-desktop is-4-widescreen is-offset-4-widescreen">
+                        <form @submit.prevent="save" v-if="!isReady">
+                            <div class="title">MOCO Integration</div>
+                            <div class="subtitle">Please enter your private MOCO API key.</div>
+
+                            <div class="field is-horizontal mb-4">
+                                <div class="field-label is-normal">
+                                    <label class="label has-text-left">API key</label>
+                                </div>
+                                <div class="field-body">
+                                    <div class="field">
+                                        <p class="control">
+                                            <input class="input" :class="{ 'is-danger': hasError }" type="text" v-model="key" :disabled="isLoading" required />
+                                        </p>
+                                        <span class="has-text-danger" v-if="hasError">The API key is invalid.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="button is-fullwidth is-info" :class="{ 'is-loading': isLoading }">Save</button>
+                        </form>
+
+                        <div v-else>
+                            <div class="title">Thank you, {{ username }}!</div>
+                            <div class="subtitle">The MOCO integration is now ready!</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <script>
+            new Vue({
+                el: '#app',
+                data: {
+                    key: '',
+                    username: '',
+                    isLoading: false,
+                    hasError: false,
+                    isReady: false
+                },
+                methods: {
+                    async save() {
+                        this.isLoading = true;
+                        this.hasError = false;
+
+                        const { key } = this;
+
+                        const searchParams = new URLSearchParams(window.location.search);
+                        const code = searchParams.get('code');
+
+                        const response = await fetch('/api/login', {
+                            method: 'post',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                mocoKey: key,
+                                clickupCode: code
+                            })
+                        });
+
+                        const json = await response.json();
+
+                        this.isLoading = false;
+                        this.hasError = !json.success;
+                        this.isReady = json.success;
+
+                        if (this.isReady) {
+                            this.username = json.username;
+                        }
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
