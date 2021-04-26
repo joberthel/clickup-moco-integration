@@ -36,7 +36,7 @@ export default async (server: FastifyInstance) => {
                 for (const historyItem of body.history_items) {
                     const user = await userService.getOne(historyItem.user.id);
 
-                    if (user !== false) {
+                    if (user !== false && user._id == webhook.userid) {
                         const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
 
                         if (timeEntry !== false && (await timeEntryService.getOne(timeEntry.id)) === false) {
