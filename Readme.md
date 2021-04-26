@@ -6,9 +6,19 @@ This projects aims to connect the time tracking features of [ClickUp](https://cl
 
 ## Automatic task selection in MOCO
 
-First it will search for a previous activity on the same ClickUp task (same user) in the last 7 days. If it finds something, than it will track the time on the same MOCO task.
+First it will search for a previous activity on the same ClickUp task (same user) or folder in the last 7 days. If it finds something, than it will track the time on the same MOCO task.
 
-If no activity was found, than it will select a task with a similar name. It looks for project (MOCO), company (MOCO), folder (ClickUp) and list (ClickUp).
+If no activity was found, than it will select a task with a similar name. It checks on the following fields:
+
+MOCO:
+- project name
+- company name
+- task name
+
+ClickUp:
+- folder name
+- list name
+- time entry description or task name
 
 ## Installation
 
