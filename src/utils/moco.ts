@@ -77,16 +77,6 @@ export const getProject = async (key: string, project: number): Promise<MocoProj
     return await response.json();
 };
 
-export const getTask = async (key: string, project: number, task: number): Promise<MocoTask> => {
-    const response = await fetch(`${API_BASE}/projects/${project}/tasks/${task}`, {
-        headers: {
-            Authorization: `Token token=${key}`
-        }
-    });
-
-    return await response.json();
-};
-
 export const getActivities = async (key: string): Promise<MocoActivity[]> => {
     const past = new Date();
     past.setDate(past.getDate() - 7);
@@ -114,9 +104,10 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
         const project = await getProject(key, activity.project.id);
 
         if (project.active) {
-            const task = await getTask(key, project.id, activity.task.id);
+            const taskId = activity.task.id;
+            const task = project.tasks.find(item => item.id == taskId);
 
-            if (task.active) {
+            if (typeof task !== 'undefined' && task.active) {
                 return await createActivity(key, clickupTask, timeEntry, project.id, task.id);
             }
         }
