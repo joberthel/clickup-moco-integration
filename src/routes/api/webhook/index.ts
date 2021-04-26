@@ -3,7 +3,6 @@ import { FastifyInstance } from 'fastify';
 import UserService from '../../../services/user';
 import { trackClickupTask } from '../../../utils/moco';
 import WebhookService from '../../../services/webhook';
-import TimeEntryService from '../../../services/time-entry';
 import { ClickupUser, getTimeEntry, getTask } from '../../../utils/clickup';
 
 export interface TaskTimeTrackedUpdated {
@@ -25,31 +24,27 @@ export interface TaskTimeTrackedUpdatedHistoryItems {
 export default async (server: FastifyInstance) => {
     const userService = new UserService(server);
     const webhookService = new WebhookService(server);
-    const timeEntryService = new TimeEntryService(server);
 
     const eventEmitter = new EventEmitter();
     eventEmitter.on('taskTimeTrackedUpdated', async (body: TaskTimeTrackedUpdated) => {
-        if (typeof body.history_items !== 'undefined') {
-            const webhook = await webhookService.getOne(body.webhook_id);
+        if (typeof body.history_items === 'undefined') return;
 
-            if (webhook !== false) {
-                for (const historyItem of body.history_items) {
-                    const user = await userService.getOne(historyItem.user.id);
+        const webhook = await webhookService.getOne(body.webhook_id);
+        if (webhook === false) return;
 
-                    if (user !== false && user._id == webhook.userid) {
-                        const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
+        for (const historyItem of body.history_items) {
+            if (historyItem.user.id != webhook.userid) continue;
 
-                        if (timeEntry !== false && (await timeEntryService.getOne(timeEntry.id)) === false) {
-                            const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
+            const user = await userService.getOne(historyItem.user.id);
+            if (user === false) continue;
 
-                            if (task !== false) {
-                                await trackClickupTask(user.credentials.mocoKey, task, timeEntry);
-                                await timeEntryService.create({ _id: timeEntry.id });
-                            }
-                        }
-                    }
-                }
-            }
+            const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
+            if (timeEntry === false) continue;
+
+            const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
+            if (task === false) continue;
+
+            await trackClickupTask(user.credentials.mocoKey, task, timeEntry);
         }
     });
 
