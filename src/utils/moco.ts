@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
-import { ClickupTask, ClickupTimeEntry } from './clickup';
-import { MOCO_SUBDOMAIN } from '../environment';
 import stringSimilarity from 'string-similarity';
+import { ClickupTask, ClickupTimeEntry } from './clickup';
+import { MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
 
 const API_BASE = `https://${MOCO_SUBDOMAIN}.mocoapp.com/api/v1`;
 
@@ -79,7 +79,7 @@ export const getProject = async (key: string, project: number): Promise<MocoProj
 
 export const getActivities = async (key: string): Promise<MocoActivity[]> => {
     const past = new Date();
-    past.setDate(past.getDate() - 7);
+    past.setDate(past.getDate() - MOCO_TASK_HISTORY);
 
     const response = await fetch(`${API_BASE}/activities?from=${formatDate(past)}&to=${formatDate(new Date())}&user_id=${await getUserId(key)}`, {
         headers: {

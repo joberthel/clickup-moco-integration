@@ -8,6 +8,7 @@ export const CLICKUP_ID = process.env.CLICKUP_ID || '';
 export const CLICKUP_SECRET = process.env.CLICKUP_SECRET || '';
 
 export const MOCO_SUBDOMAIN = process.env.MOCO_SUBDOMAIN || '';
+export const MOCO_TASK_HISTORY = parseInt(process.env.MOCO_TASK_HISTORY || '7');
 
 export const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost';
 export const MONGODB_PORT = process.env.MONGODB_PORT || 27017;
