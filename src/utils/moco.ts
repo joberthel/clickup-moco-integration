@@ -29,6 +29,7 @@ export interface MocoTask {
 
 export interface MocoActivity {
     tag: string;
+    remote_id: string;
     remote_service: string;
     created_at: string;
     project: MocoProject;
@@ -97,13 +98,17 @@ export const getActivities = async (key: string): Promise<MocoActivity[]> => {
     });
 
     const activities: MocoActivity[] = await response.json();
-    return activities.filter(activity => activity.remote_service === 'clickup' && activity.tag.length > 0);
+    return activities.filter(activity => activity.remote_service === 'clickup').reverse();
 };
 
 export const trackClickupTask = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<void> => {
     // track on same task if old activity is found
     const activities = await getActivities(key);
-    const activity = activities.find(activity => activity.tag === (clickupTask.custom_id || clickupTask.id));
+    let activity = activities.find(item => item.tag === (clickupTask.custom_id || clickupTask.id));
+
+    if (typeof activity === 'undefined') {
+        activity = activities.find(item => item.remote_id === clickupTask.folder.id);
+    }
 
     if (typeof activity !== 'undefined') {
         const project = await getProject(key, activity.project.id);
@@ -138,7 +143,7 @@ export const createActivity = async (key: string, clickupTask: ClickupTask, time
             billable: timeEntry.billable,
             tag: clickupTask.custom_id || clickupTask.id,
             remote_service: 'clickup',
-            remote_id: clickupTask.id,
+            remote_id: clickupTask.folder.id,
             remote_url: clickupTask.url,
             project_id: project,
             task_id: task,
