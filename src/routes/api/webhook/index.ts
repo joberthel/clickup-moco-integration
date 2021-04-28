@@ -38,13 +38,24 @@ export default async (server: FastifyInstance) => {
             const user = await userService.getOne(historyItem.user.id);
             if (user === false) continue;
 
+            server.log.info(`Received time tracking from ${user.username}`);
+
             const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
             if (timeEntry === false) continue;
+
+            server.log.info(`Time tracking details were found in ClickUp.`);
 
             const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
             if (task === false) continue;
 
-            await trackClickupTask(user.credentials.mocoKey, task, timeEntry);
+            server.log.info(`Starting time tracking in MOCO.`);
+
+            try {
+                await trackClickupTask(user.credentials.mocoKey, task, timeEntry, server.log);
+            } catch (error) {
+                console.error(error);
+                server.log.error(`There was an error tracking the time for task ${task.custom_id || task.id} (${user.username}).`);
+            }
         }
     });
 

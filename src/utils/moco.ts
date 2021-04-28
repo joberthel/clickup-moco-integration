@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { FastifyLoggerInstance } from 'fastify';
 import stringSimilarity from 'string-similarity';
 import { ClickupTask, ClickupTimeEntry } from './clickup';
 import { MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
@@ -91,12 +92,13 @@ export const getActivities = async (key: string): Promise<MocoActivity[]> => {
     return activities.filter(activity => activity.remote_service === 'clickup').reverse();
 };
 
-export const trackClickupTask = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<void> => {
+export const trackClickupTask = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry, log: FastifyLoggerInstance): Promise<void> => {
     // track on same task if old activity is found
     const activities = await getActivities(key);
     let activity = activities.find(item => item.tag === (clickupTask.custom_id || clickupTask.id));
 
     if (typeof activity === 'undefined') {
+        log.info('Found no activity for that task in MOCO.');
         activity = activities.find(item => item.remote_id === clickupTask.folder.id);
     }
 
@@ -108,17 +110,23 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
             const task = project.tasks.find(item => item.id == taskId);
 
             if (typeof task !== 'undefined' && task.active) {
+                log.info('Tracking time in MOCO based on activity.');
                 return await createActivity(key, clickupTask, timeEntry, project.id, task.id);
             }
         }
     }
 
+    log.info('Found no activity for that folder in MOCO.');
+
     // track on task based on similar name
     const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry);
 
     if (similarMatch !== false) {
+        log.info('Tracking time in MOCO based on similar match.');
         return await createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
     }
+
+    log.warn('Not able to track any time in MOCO');
 };
 
 export const createActivity = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry, project: number, task: number): Promise<void> => {
@@ -143,11 +151,7 @@ export const createActivity = async (key: string, clickupTask: ClickupTask, time
     });
 };
 
-const findProjectTaskBySimilarity = async (
-    key: string,
-    clickupTask: ClickupTask,
-    timeEntry: ClickupTimeEntry
-): Promise<{ project: number; task: number } | false> => {
+const findProjectTaskBySimilarity = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<{ project: number; task: number } | false> => {
     const projects = (await getAssignedProjects(key)).filter(project => project.active).filter(project => project.tasks.filter(task => task.active).length > 0);
     if (projects.length == 0) return false;
 
@@ -158,10 +162,7 @@ const findProjectTaskBySimilarity = async (
         const project = projects[projectMatch.bestMatchIndex];
         const tasks = project.tasks.filter(task => task.active);
 
-        const taskMatch = findMatch(
-            [clickupTask.folder.name, clickupTask.list.name, timeEntry.description || clickupTask.name],
-            [tasks.map(task => task.name)]
-        );
+        const taskMatch = findMatch([clickupTask.folder.name, clickupTask.list.name, timeEntry.description || clickupTask.name], [tasks.map(task => task.name)]);
 
         if (typeof taskMatch !== 'undefined') {
             const task = tasks[taskMatch.bestMatchIndex];
