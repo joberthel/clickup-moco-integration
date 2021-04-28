@@ -98,7 +98,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     let activity = activities.find(item => item.tag === (clickupTask.custom_id || clickupTask.id));
 
     if (typeof activity === 'undefined') {
-        log.info('Found no activity for that task in MOCO.');
+        log.info('Found no activity for that ClickUp task in MOCO. Searching for folder activity.');
         activity = activities.find(item => item.remote_id === clickupTask.folder.id);
     }
 
@@ -116,8 +116,6 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
         }
     }
 
-    log.info('Found no activity for that folder in MOCO.');
-
     // track on task based on similar name
     const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry);
 
@@ -126,7 +124,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
         return await createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
     }
 
-    log.warn('Not able to track any time in MOCO');
+    log.error('Not able to track any time in MOCO');
 };
 
 export const createActivity = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry, project: number, task: number): Promise<void> => {

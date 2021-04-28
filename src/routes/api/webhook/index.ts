@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify';
 import UserService from '../../../services/user';
 import { trackClickupTask } from '../../../utils/moco';
 import WebhookService from '../../../services/webhook';
+import TimeEntryService from '../../../services/time-entry';
 import { ClickupUser, getTimeEntry, getTask } from '../../../utils/clickup';
 
 export interface TaskTimeTrackedUpdated {
@@ -24,40 +25,50 @@ export interface TaskTimeTrackedUpdatedHistoryItems {
 export default async (server: FastifyInstance) => {
     const userService = new UserService(server);
     const webhookService = new WebhookService(server);
+    const timeEntryService = new TimeEntryService(server);
 
     const eventEmitter = new EventEmitter();
     eventEmitter.on('taskTimeTrackedUpdated', async (body: TaskTimeTrackedUpdated) => {
         if (typeof body.history_items === 'undefined') {
             server.log.warn(`Skipping because of empty history items!`, body);
             return;
-        };
+        }
 
         const webhook = await webhookService.getOne(body.webhook_id);
         if (webhook === false) {
-            server.log.warn(`Webhook with id ${body.webhook_id} not found!`, body);
+            server.log.error(`Webhook with id ${body.webhook_id} not found!`);
             return;
-        };
+        }
 
         for (const historyItem of body.history_items) {
-            if (historyItem.user.id != webhook.userid) {
-                server.log.warn(`Skipping because user is not the same as webhook user!`, body);
+            const timeEntryId = historyItem.after.id;
+
+            if ((await timeEntryService.getOne(timeEntryId)) !== false) {
+                server.log.info(`Time entry ${timeEntryId} was already handled.`);
                 continue;
-            };
+            }
+
+            await timeEntryService.create({ _id: timeEntryId });
 
             const user = await userService.getOne(historyItem.user.id);
-            if (user === false) continue;
+            if (user === false) {
+                server.log.warn(`User with id ${historyItem.user.id} not found!`);
+                continue;
+            }
 
-            server.log.info(`Received time tracking from ${user.username}`);
-
-            const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, historyItem.after.id);
-            if (timeEntry === false) continue;
-
-            server.log.info(`Time tracking details were found in ClickUp.`);
+            const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, timeEntryId);
+            if (timeEntry === false) {
+                server.log.error(`Time entry ${timeEntryId} not found!`);
+                continue;
+            }
 
             const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
-            if (task === false) continue;
+            if (task === false) {
+                server.log.error(`Task ${timeEntry.task.id} not found!`);
+                continue;
+            }
 
-            server.log.info(`Starting time tracking in MOCO.`);
+            server.log.info(`Starting time tracking in MOCO for ${user.username}.`);
 
             try {
                 await trackClickupTask(user.credentials.mocoKey, task, timeEntry, server.log);

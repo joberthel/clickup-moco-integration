@@ -3,6 +3,7 @@ import fastify from 'fastify';
 
 export default async () => {
     const server = fastify({
+        disableRequestLogging: true,
         logger:
             process.env.NODE_ENV === 'production'
                 ? false
