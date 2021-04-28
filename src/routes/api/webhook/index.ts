@@ -30,10 +30,20 @@ export default async (server: FastifyInstance) => {
         if (typeof body.history_items === 'undefined') return;
 
         const webhook = await webhookService.getOne(body.webhook_id);
-        if (webhook === false) return;
+        if (webhook === false) {
+            server.log.warn(`Webhook with id ${body.webhook_id} not found!`, body);
+            return;
+        };
+
+        if (typeof body.history_items === 'undefined') {
+            server.log.warn(`Skipping because of empty history items!`, body);
+        }
 
         for (const historyItem of body.history_items) {
-            if (historyItem.user.id != webhook.userid) continue;
+            if (historyItem.user.id != webhook.userid) {
+                server.log.warn(`Skipping because user is not the same as webhook user!`, body);
+                continue;
+            };
 
             const user = await userService.getOne(historyItem.user.id);
             if (user === false) continue;
