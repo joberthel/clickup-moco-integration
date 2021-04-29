@@ -8,7 +8,7 @@ export default async () => {
             process.env.NODE_ENV === 'production'
                 ? false
                 : {
-                      translateTime: 'SYS:standard',
+                      translateTime: 'SYS:h:MM:ss TT Z o',
                       prettyPrint: true,
                       level: 'info'
                   }
