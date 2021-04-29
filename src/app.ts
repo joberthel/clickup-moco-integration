@@ -8,8 +8,10 @@ export default async () => {
             process.env.NODE_ENV === 'production'
                 ? false
                 : {
-                      translateTime: 'SYS:h:MM:ss TT Z o',
-                      prettyPrint: true,
+                      prettyPrint: {
+                          translateTime: 'SYS:h:MM:ss TT Z o',
+                          colorize: true
+                      },
                       level: 'info'
                   }
     });
