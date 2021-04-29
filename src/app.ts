@@ -9,7 +9,7 @@ export default async () => {
                 ? false
                 : {
                       prettyPrint: {
-                          translateTime: 'SYS:h:MM:ss TT Z o',
+                          translateTime: 'SYS:HH:MM:ss.l o',
                           colorize: true
                       },
                       level: 'info'
