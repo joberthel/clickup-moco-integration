@@ -39,6 +39,7 @@ services:
             - "traefik.http.routers.server-ssl.tls.certresolver=myresolver"
         volumes:
             - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
 
     mongo:
         restart: unless-stopped
