@@ -135,12 +135,12 @@ export const createActivity = async (key: string, clickupTask: ClickupTask, time
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            date: `${formatDate(new Date())}`,
+            date: `${formatDate(new Date(parseInt(timeEntry.start)))}`,
             description: timeEntry.description || clickupTask.name,
             billable: timeEntry.billable,
             tag: clickupTask.custom_id || clickupTask.id,
             remote_service: 'clickup',
-            remote_id: clickupTask.folder.id,
+            remote_id: clickupTask.list.id,
             remote_url: clickupTask.url,
             project_id: project,
             task_id: task,

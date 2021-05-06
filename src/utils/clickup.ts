@@ -33,6 +33,8 @@ export interface ClickupTimeEntry {
     task: ClickupTask
     user: ClickupUser;
     billable: boolean;
+    start: string;
+    end: string;
     duration: string;
     description: string;
     tags: string[];
