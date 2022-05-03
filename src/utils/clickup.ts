@@ -154,3 +154,16 @@ export const getTask = async (token: string, task: string): Promise<ClickupTask|
     const json = await response.json();
     return json;
 };
+
+export const getTimeEntries = async (token: string, team: number): Promise<ClickupTimeEntry[]> => {
+    const startDate = new Date().getTime() - 60 * 60 * 1000; // last 60 minutes
+
+    const response = await fetch(`${API_BASE}/team/${team}/time_entries?start_date=${startDate}`, {
+        headers: {
+            Authorization: token
+        }
+    });
+
+    const json = await response.json();
+    return json.data;
+};

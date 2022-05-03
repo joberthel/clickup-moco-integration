@@ -1,5 +1,7 @@
 import path from 'path';
+import cron from 'node-cron';
 import fastify from 'fastify';
+import { syncMissedTimeEntries } from './utils/cron';
 
 export default async () => {
     const server = fastify({
@@ -26,6 +28,12 @@ export default async () => {
     // routes
     await server.register(import('./routes/api'), { prefix: 'api' });
     await server.register(import('./routes/login'), { prefix: 'login' });
+
+    cron.schedule('*/5 * * * *', async () => {
+        server.log.info('CronJob started!')
+        await syncMissedTimeEntries(server);
+        server.log.info('CronJob finished!')
+    });
 
     return server;
 };
