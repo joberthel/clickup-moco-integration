@@ -31,7 +31,13 @@ export default async () => {
 
     cron.schedule('*/5 * * * *', async () => {
         server.log.info('CronJob started!')
-        await syncMissedTimeEntries(server);
+
+        try {
+            await syncMissedTimeEntries(server);
+        } catch (err) {
+            server.log.error('An error during cron job execution occured.', err);
+        }
+
         server.log.info('CronJob finished!')
     });
 

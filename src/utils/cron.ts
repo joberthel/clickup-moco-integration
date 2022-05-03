@@ -16,6 +16,8 @@ export async function syncMissedTimeEntries(server: FastifyInstance) {
         const user = await userService.getOne(webhook.userid);
 
         if (user !== false) {
+            server.log.info(`[CRON] Checking entries for ${user.username}`);
+
             const token = await getToken(user.credentials.clickupToken);
             const timeEntries = await getTimeEntries(token, webhook.team_id);
 
