@@ -39,6 +39,8 @@ export async function syncMissedTimeEntries(server: FastifyInstance) {
                 } catch (error) {
                     console.error(error);
                     server.log.error(`There was an error tracking the time for task ${task.custom_id || task.id} (${user.username}).`);
+
+                    timeEntryService.delete(timeEntry.id);
                 }
             }
         }

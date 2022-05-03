@@ -99,7 +99,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
 
     if (typeof activity === 'undefined') {
         log.info('Found no activity for that ClickUp task in MOCO. Searching for folder activity.');
-        activity = activities.find(item => item.remote_id === clickupTask.folder.id);
+        activity = activities.find(item => item.remote_id === clickupTask.list.id);
     }
 
     if (typeof activity !== 'undefined') {
