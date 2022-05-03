@@ -34,8 +34,8 @@ export default async () => {
 
         try {
             await syncMissedTimeEntries(server);
-        } catch (err) {
-            server.log.error('An error during cron job execution occured.', err);
+        } catch (err: any) {
+            server.log.error('An error during cron job execution occured.', err?.toString());
         }
 
         server.log.info('CronJob finished!')
