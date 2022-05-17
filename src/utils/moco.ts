@@ -65,17 +65,11 @@ export const getAssignedProjects = async (key: string): Promise<MocoProject[]> =
         }
     });
 
-    return await response.json();
+    return response.json();
 };
 
-export const getProject = async (key: string, project: number): Promise<MocoProject> => {
-    const response = await fetch(`${API_BASE}/projects/${project}`, {
-        headers: {
-            Authorization: `Token token=${key}`
-        }
-    });
-
-    return await response.json();
+export const getProject = async (key: string, project: number): Promise<MocoProject | null> => {
+    return (await getAssignedProjects(key)).find(item => item.id === project) || null;
 };
 
 export const getActivities = async (key: string): Promise<MocoActivity[]> => {
@@ -105,13 +99,13 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     if (typeof activity !== 'undefined') {
         const project = await getProject(key, activity.project.id);
 
-        if (project.active) {
+        if (project !== null && project.active) {
             const taskId = activity.task.id;
             const task = project.tasks.find(item => item.id == taskId);
 
             if (typeof task !== 'undefined' && task.active) {
                 log.info('Tracking time in MOCO based on activity.');
-                return await createActivity(key, clickupTask, timeEntry, project.id, task.id);
+                return createActivity(key, clickupTask, timeEntry, project.id, task.id);
             }
         }
     }
@@ -121,7 +115,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
 
     if (similarMatch !== false) {
         log.info('Tracking time in MOCO based on similar match.');
-        return await createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
+        return createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
     }
 
     log.error('Not able to track any time in MOCO');
