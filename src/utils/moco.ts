@@ -114,7 +114,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry);
 
     if (similarMatch !== false) {
-        log.info('Tracking time in MOCO based on similar match.');
+        log.info(`Tracking time in MOCO based on similar match. (Project: ${similarMatch.project} - Task: ${similarMatch.task})`);
         return createActivity(key, clickupTask, timeEntry, similarMatch.project, similarMatch.task);
     }
 
