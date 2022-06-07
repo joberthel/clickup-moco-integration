@@ -14,6 +14,7 @@ export interface MocoProject {
     billable: boolean;
     customer: MocoCustomer;
     tasks: MocoTask[];
+    contracts: { user_id: number; active: boolean }[];
 }
 
 export interface MocoCustomer {
@@ -65,7 +66,25 @@ export const getAssignedProjects = async (key: string): Promise<MocoProject[]> =
         }
     });
 
-    return response.json();
+    const rawProjects: MocoProject[] = await response.json();
+
+    if (rawProjects.length === 0) {
+        return [];
+    }
+
+    const userId = await getUserId(key);
+
+    return (
+        await Promise.all(
+            rawProjects.map(project =>
+                fetch(`${API_BASE}/projects/${project.id}`, {
+                    headers: {
+                        Authorization: `Token token=${key}`
+                    }
+                }).then(res => res.json())
+            )
+        )
+    ).filter((project: MocoProject) => project.contracts.findIndex(user => user.user_id === userId && user.active) !== -1);
 };
 
 export const getProject = async (key: string, project: number): Promise<MocoProject | null> => {
