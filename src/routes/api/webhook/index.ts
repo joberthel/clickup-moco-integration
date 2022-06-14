@@ -59,12 +59,14 @@ export default async (server: FastifyInstance) => {
             const timeEntry = await getTimeEntry(user.credentials.clickupToken, webhook.team_id, timeEntryId);
             if (timeEntry === false || timeEntry === null) {
                 server.log.error(`Time entry ${timeEntryId} not found!`);
+                timeEntryService.delete(timeEntryId);
                 continue;
             }
 
             const task = await getTask(user.credentials.clickupToken, timeEntry.task.id);
             if (task === false) {
                 server.log.error(`Task ${timeEntry.task.id} not found!`);
+                timeEntryService.delete(timeEntryId);
                 continue;
             }
 
