@@ -3,7 +3,7 @@ import stringSimilarity from 'string-similarity';
 import { ClickupTask, ClickupTimeEntry } from './clickup';
 import { MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
 
-import originalFetch from 'node-fetch';
+import originalFetch, { FetchError, Response } from 'node-fetch';
 import fetchBuilder from 'fetch-retry-ts';
 
 const options = {
@@ -68,7 +68,7 @@ export const getUserId = async (key: string): Promise<number> => {
     return json.id;
 };
 
-export const getAssignedProjects = async (key: string): Promise<MocoProject[]> => {
+export const getAssignedProjects = async (key: string, log: FastifyLoggerInstance): Promise<MocoProject[]> => {
     const response = await fetch(`${API_BASE}/projects/assigned?active=true`, {
         headers: {
             Authorization: `Token token=${key}`
@@ -90,14 +90,20 @@ export const getAssignedProjects = async (key: string): Promise<MocoProject[]> =
                     headers: {
                         Authorization: `Token token=${key}`
                     }
-                }).then(res => res.json())
+                }).then(async (res: Response) => {
+                    return res.json().catch(async err => {
+                        log.error(`STATUS: ${res.status}`);
+                        log.error(`BODY: ${await res.text()}`);
+                        throw err;
+                    });
+                })
             )
         )
     ).filter((project: MocoProject) => project.contracts.findIndex(user => user.user_id === userId && user.active) !== -1);
 };
 
-export const getProject = async (key: string, project: number): Promise<MocoProject | null> => {
-    return (await getAssignedProjects(key)).find(item => item.id === project) || null;
+export const getProject = async (key: string, project: number, log: FastifyLoggerInstance): Promise<MocoProject | null> => {
+    return (await getAssignedProjects(key, log)).find(item => item.id === project) || null;
 };
 
 export const getActivities = async (key: string): Promise<MocoActivity[]> => {
@@ -125,7 +131,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     }
 
     if (typeof activity !== 'undefined') {
-        const project = await getProject(key, activity.project.id);
+        const project = await getProject(key, activity.project.id, log);
 
         if (project !== null && project.active) {
             const taskId = activity.task.id;
@@ -139,7 +145,7 @@ export const trackClickupTask = async (key: string, clickupTask: ClickupTask, ti
     }
 
     // track on task based on similar name
-    const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry);
+    const similarMatch = await findProjectTaskBySimilarity(key, clickupTask, timeEntry, log);
 
     if (similarMatch !== false) {
         log.info(`Tracking time in MOCO based on similar match. (Project: ${similarMatch.project} - Task: ${similarMatch.task})`);
@@ -171,8 +177,13 @@ export const createActivity = async (key: string, clickupTask: ClickupTask, time
     });
 };
 
-const findProjectTaskBySimilarity = async (key: string, clickupTask: ClickupTask, timeEntry: ClickupTimeEntry): Promise<{ project: number; task: number } | false> => {
-    const projects = (await getAssignedProjects(key)).filter(project => project.active).filter(project => project.tasks.filter(task => task.active).length > 0);
+const findProjectTaskBySimilarity = async (
+    key: string,
+    clickupTask: ClickupTask,
+    timeEntry: ClickupTimeEntry,
+    log: FastifyLoggerInstance
+): Promise<{ project: number; task: number } | false> => {
+    const projects = (await getAssignedProjects(key, log)).filter(project => project.active).filter(project => project.tasks.filter(task => task.active).length > 0);
     if (projects.length == 0) return false;
 
     const projectCombinations = [projects.map(project => project.name), projects.map(project => project.customer.name)];
