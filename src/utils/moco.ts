@@ -1,11 +1,20 @@
-import fetch from 'node-fetch';
 import { FastifyLoggerInstance } from 'fastify';
 import stringSimilarity from 'string-similarity';
 import { ClickupTask, ClickupTimeEntry } from './clickup';
 import { MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
 
-const API_BASE = `https://${MOCO_SUBDOMAIN}.mocoapp.com/api/v1`;
+import originalFetch from 'node-fetch';
+import fetchBuilder from 'fetch-retry-ts';
 
+const options = {
+    retries: 5,
+    retryDelay: (attempt: number): number => Math.pow(2, attempt) * 1000,
+    retryOn: [429, 503, 504]
+};
+
+const fetch = fetchBuilder(originalFetch, options);
+
+const API_BASE = `https://${MOCO_SUBDOMAIN}.mocoapp.com/api/v1`;
 export interface MocoProject {
     id: number;
     identifier: string;
