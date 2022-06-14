@@ -90,16 +90,17 @@ export const getAssignedProjects = async (key: string, log: FastifyLoggerInstanc
                     headers: {
                         Authorization: `Token token=${key}`
                     }
-                }).then(async (res: Response) => {
-                    return res.json().catch(async err => {
-                        log.error(`STATUS: ${res.status}`);
-                        log.error(`BODY: ${await res.text()}`);
-                        throw err;
-                    });
+                }).then((res: Response) => {
+                    if (res.status === 403) {
+                        log.debug(`Not allowed to read project with id ${project.id}`);
+                        return null;
+                    }
+
+                    return res.json();
                 })
             )
         )
-    ).filter((project: MocoProject) => project.contracts.findIndex(user => user.user_id === userId && user.active) !== -1);
+    ).filter((project: MocoProject) => project !== null && project.contracts.findIndex(user => user.user_id === userId && user.active) !== -1);
 };
 
 export const getProject = async (key: string, project: number, log: FastifyLoggerInstance): Promise<MocoProject | null> => {
