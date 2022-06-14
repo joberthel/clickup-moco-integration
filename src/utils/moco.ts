@@ -1,9 +1,9 @@
 import { FastifyLoggerInstance } from 'fastify';
 import stringSimilarity from 'string-similarity';
 import { ClickupTask, ClickupTimeEntry } from './clickup';
-import { MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
+import { MOCO_ADMIN_KEY, MOCO_SUBDOMAIN, MOCO_TASK_HISTORY } from '../environment';
 
-import originalFetch, { FetchError, Response } from 'node-fetch';
+import originalFetch, { Response } from 'node-fetch';
 import fetchBuilder from 'fetch-retry-ts';
 
 const options = {
@@ -88,7 +88,7 @@ export const getAssignedProjects = async (key: string, log: FastifyLoggerInstanc
             rawProjects.map(project =>
                 fetch(`${API_BASE}/projects/${project.id}`, {
                     headers: {
-                        Authorization: `Token token=${key}`
+                        Authorization: `Token token=${MOCO_ADMIN_KEY}`
                     }
                 }).then((res: Response) => {
                     if (res.status === 403) {
